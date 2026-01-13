@@ -1,0 +1,65 @@
+import streamlit as st
+import joblib
+import numpy as np
+import pandas as pd
+
+# Гарчиг
+st.set_page_config(page_title="Байрны үнэ таавар", layout="centered")
+st.title("🏠 Улаанбаатарын орон сууцны үнийг таамаглах апп")
+st.markdown("Таны оруулсан мэдээллээр байрны зах зээлийн үнийг тооцоолно (unegui.mn-ийн 15,000+ зарын өгөгдөл дээр сургагдсан)")
+
+# Загвар болон encoder-ээ ачаалах
+@st.cache_resource
+def load_model():
+    model = joblib.load('best_model.pkl')
+    le = joblib.load('label_encoder.pkl')
+    return model, le
+
+try:
+    model, le = load_model()
+except:
+    st.error("Алдаа: 'best_model.pkl' эсвэл 'label_encoder.pkl' файлыг энэ фолдерт хийнэ үү!")
+    st.stop()
+
+# Хэрэглэгчийн оролт
+col1, col2 = st.columns(2)
+
+with col1:
+    area = st.number_input("Талбай (м²)", min_value=10.0, max_value=500.0, value=80.0, step=1.0)
+    rooms = st.slider("Өрөөний тоо", 1, 8, 3)
+    floor = st.number_input("Аль давхарт вэ", min_value=1, max_value=30, value=6)
+    total_floors = st.number_input("Барилгын нийт давхар", min_value=1, max_value=30, value=16)
+
+with col2:
+    year_built = st.number_input("Баригдсан он", min_value=1980, max_value=2026, value=2018)
+    has_elevator = st.selectbox("Лифттэй эсэх", ["Үгүй", "Тийм"])
+    has_garage = st.selectbox("Гарааштай эсэх", ["Үгүй", "Тийм"])
+    windows = st.number_input("Цонхны тоо", min_value=1, max_value=10, value=4)
+
+district = st.selectbox("Дүүрэг", sorted(le.classes_))
+
+# Тооцоолох товч
+if st.button("Үнийг тооцоолох", type="primary"):
+    # Бэлтгэл
+    elevator_val = 1 if has_elevator == "Тийм" else 0
+    garage_val = 1 if has_garage == "Тийм" else 0
+    district_encoded = le.transform([district])[0]
+
+    # Өгөгдөл бэлтгэх
+    input_data = np.array([[area, rooms, floor, total_floors, year_built,
+                            elevator_val, garage_val, windows, district_encoded]])
+
+    # Таамаглал
+    prediction = model.predict(input_data)[0]
+
+    # Хэрэв лог хувиргалттай загвар ашигласан бол буцааж хөрвүүлэх (шаардлагатай бол тайлбар хэсэгт нэмнэ үү)
+    # prediction = np.expm1(prediction)
+
+    st.markdown("---")
+    st.success(f"### Таамагласан зах зээлийн үнэ: **{prediction:,.0f} ₮**")
+    st.info("⚠️ Энэ бол таамаглал тул бодит борлуулалтын үнээс ±15% зөрүүтэй байж болно.")
+    st.caption("Загвар: Gradient Boosting / Random Forest")
+
+# Доод талд тайлбар
+st.markdown("---")
+st.caption("Зохиогч: Зоригтбаатар | VS Code + Streamlit ашиглан бүтээв")
