@@ -5,12 +5,12 @@ import pandas as pd
 import os
 import gdown
 
-# Гарчиг
+# Гарчиг, тохиргоо
 st.set_page_config(page_title="Байрны үнэ таавар", layout="centered")
 st.title("🏠 Улаанбаатарын орон сууцны үнийг таамаглах апп")
 st.markdown("Таны оруулсан мэдээллээр байрны зах зээлийн үнийг тооцоолно (unegui.mn-ийн 15,000+ зарын өгөгдөл дээр сургагдсан)")
 
-# Загвар болон encoder-ээ ачаалах
+# Загвар, encoder ачаалах функц
 @st.cache_resource
 def load_model():
     model_path = 'best_model.pkl'
@@ -19,14 +19,27 @@ def load_model():
     # Хэрэв файл байхгүй бол Google Drive-ээс татна
     if not os.path.exists(model_path):
         st.info("Загвар татаж байна... Түр хүлээнэ үү (эхний удаа удаан байж болно)")
-        gdown.download("https://drive.google.com/file/d/11vPH3PcQbnkXF7cbvNZ1RdYaXAnd4HPI/view?usp=sharing", model_path, quiet=False)
+        # Таны best_model.pkl-ийн ID: 11vPH3PcQbnkXF7cbvNZ1RdYaXAnd4HPI
+        gdown.download("https://drive.google.com/uc?id=11vPH3PcQbnkXF7cbvNZ1RdYaXAnd4HPI", model_path, quiet=False)
     
     if not os.path.exists(encoder_path):
-        gdown.download("https://drive.google.com/file/d/1xc0cn9JtrMGkpNElgLLQlY6giHftL7kI/view?usp=sharing", encoder_path, quiet=False)
+        # Таны label_encoder.pkl-ийн ID: 1xc0cn9JtrMGkpNElgLLQlY6giHftL7kI
+        gdown.download("https://drive.google.com/uc?id=1xc0cn9JtrMGkpNElgLLQlY6giHftL7kI", encoder_path, quiet=False)
     
     model = joblib.load(model_path)
     le = joblib.load(encoder_path)
     return model, le
+
+# ЭНД загвар, le-г ачаална (функцийг дуудна)
+try:
+    model, le = load_model()
+    st.success("Загвар амжилттай ачаалагдлаа!")
+except Exception as e:
+    st.error(f"Загвар ачаалахад алдаа гарлаа: {e}")
+    st.stop()
+
+# Одоо le бэлэн болсон тул дүүргийн сонголтыг үүсгэнэ
+district_options = sorted(le.classes_)
 
 # Хэрэглэгчийн оролт
 col1, col2 = st.columns(2)
@@ -43,30 +56,24 @@ with col2:
     has_garage = st.selectbox("Гарааштай эсэх", ["Үгүй", "Тийм"])
     windows = st.number_input("Цонхны тоо", min_value=1, max_value=10, value=4)
 
-district = st.selectbox("Дүүрэг", sorted(le.classes_))
+district = st.selectbox("Дүүрэг", district_options)
 
 # Тооцоолох товч
 if st.button("Үнийг тооцоолох", type="primary"):
-    # Бэлтгэл
     elevator_val = 1 if has_elevator == "Тийм" else 0
     garage_val = 1 if has_garage == "Тийм" else 0
     district_encoded = le.transform([district])[0]
 
-    # Өгөгдөл бэлтгэх
     input_data = np.array([[area, rooms, floor, total_floors, year_built,
                             elevator_val, garage_val, windows, district_encoded]])
 
-    # Таамаглал
     prediction = model.predict(input_data)[0]
-
-    # Хэрэв лог хувиргалттай загвар ашигласан бол буцааж хөрвүүлэх (шаардлагатай бол тайлбар хэсэгт нэмнэ үү)
-    # prediction = np.expm1(prediction)
 
     st.markdown("---")
     st.success(f"### Таамагласан зах зээлийн үнэ: **{prediction:,.0f} ₮**")
-    st.info("⚠️ Энэ бол таамаглал тул бодит борлуулалтын үнээс ±15% зөрүүтэй байж болно.")
-    st.caption("Загвар: Gradient Boosting / Random Forest")
+    st.info("⚠️ Энэ бол таамаглал тул бодит борлуулалтын үнээс ±15-25% зөрүүтэй байж болно.")
+    st.caption("Загвар: Gradient Boosting / Random Forest | Өгөгдөл: unegui.mn")
 
-# Доод талд тайлбар
+# Доод хэсэг
 st.markdown("---")
-st.caption("Зохиогч: Зоригтбаатар | VS Code + Streamlit ашиглан бүтээв")
+st.caption("Зохиогч: Зоригтбаатар | Streamlit + scikit-learn")
