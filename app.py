@@ -2,6 +2,8 @@ import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
+import os
+import gdown
 
 # Гарчиг
 st.set_page_config(page_title="Байрны үнэ таавар", layout="centered")
@@ -11,15 +13,20 @@ st.markdown("Таны оруулсан мэдээллээр байрны зах 
 # Загвар болон encoder-ээ ачаалах
 @st.cache_resource
 def load_model():
-    model = joblib.load('best_model.pkl')
-    le = joblib.load('label_encoder.pkl')
+    model_path = 'best_model.pkl'
+    encoder_path = 'label_encoder.pkl'
+    
+    # Хэрэв файл байхгүй бол Google Drive-ээс татна
+    if not os.path.exists(model_path):
+        st.info("Загвар татаж байна... Түр хүлээнэ үү (эхний удаа удаан байж болно)")
+        gdown.download("https://drive.google.com/file/d/11vPH3PcQbnkXF7cbvNZ1RdYaXAnd4HPI/view?usp=sharing", model_path, quiet=False)
+    
+    if not os.path.exists(encoder_path):
+        gdown.download("https://drive.google.com/file/d/1xc0cn9JtrMGkpNElgLLQlY6giHftL7kI/view?usp=sharing", encoder_path, quiet=False)
+    
+    model = joblib.load(model_path)
+    le = joblib.load(encoder_path)
     return model, le
-
-try:
-    model, le = load_model()
-except:
-    st.error("Алдаа: 'best_model.pkl' эсвэл 'label_encoder.pkl' файлыг энэ фолдерт хийнэ үү!")
-    st.stop()
 
 # Хэрэглэгчийн оролт
 col1, col2 = st.columns(2)
